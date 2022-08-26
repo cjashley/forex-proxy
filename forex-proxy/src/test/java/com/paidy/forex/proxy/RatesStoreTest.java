@@ -35,7 +35,7 @@ public class RatesStoreTest {
 		final RatesStore.CurrencyPair JPYNZD = new RatesStore.CurrencyPair("JPYNZD");
 		assertNull(Singleton.INSTANCE.rates.findRate(JPYNZD));
 		
-		Rate rateJPYNZD = randomRate();
+		Rate rateJPYNZD = Rate.randomRate();
 		Singleton.INSTANCE.rates.addRate(JPYNZD,rateJPYNZD);
 		Rate found = Singleton.INSTANCE.rates.findRate(JPYNZD);
 		
@@ -43,11 +43,5 @@ public class RatesStoreTest {
 		assertEquals(rateJPYNZD, found);
 	}
 	
-	Rate randomRate()
-	{
-		double bid = Math.random();
-		double ask = bid+Math.random()/100.0; 
-		double price = (ask-bid) /2;
-		return new Rate(bid,ask,price,Instant.now());
-	}
+	
 }

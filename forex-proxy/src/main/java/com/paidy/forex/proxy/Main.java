@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.Optional;
 import java.util.logging.Level;
+import java.util.logging.LogManager;
 import java.util.logging.Logger;
 
 /**
@@ -25,15 +26,13 @@ public class Main {
     public static final String BASE_URI;
     public static final String protocol;
     public static final Optional<String> host;
-    public static final String path;
     public static final Optional<String> port;
     
     static{
       protocol = "http://";
       host = Optional.ofNullable(System.getenv("HOSTNAME"));
       port = Optional.ofNullable(System.getenv("PORT"));
-      path = "myapp";
-      BASE_URI = protocol + host.orElse("localhost") + ":" + port.orElse("8081") + "/" + path + "/";
+      BASE_URI = protocol + host.orElse("localhost") + ":" + port.orElse("8081") + "/" ;
     }
     
     /**
@@ -44,6 +43,9 @@ public class Main {
         // create a resource config that scans for JAX-RS resources and providers
         // in com.example package
         final ResourceConfig rc = new ResourceConfig().packages("com.paidy.forex.proxy");
+        
+        rc.getClasses().forEach(c -> System.out.println(c.descriptorString()));
+        	
         // create and start a new instance of grizzly http server
         // exposing the Jersey application at BASE_URI
         return GrizzlyHttpServerFactory.createHttpServer(URI.create(BASE_URI), rc);

@@ -3,7 +3,7 @@
 
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>com.example</groupId>
+    <groupId>com.paidy.forex.proxy</groupId>
     <artifactId>forex-proxy</artifactId>
     <packaging>jar</packaging>
     <version>1.0-SNAPSHOT</version>
@@ -81,7 +81,7 @@
                     </execution>
                 </executions>
                 <configuration>
-                    <mainClass>com.example.Main</mainClass>
+                    <mainClass>com.paidy.forex.proxy.Main</mainClass>
                 </configuration>
             </plugin>
         </plugins>

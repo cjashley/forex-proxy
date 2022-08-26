@@ -4,6 +4,8 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.HashMap;
 
+import com.paidy.forex.proxy.RatesStore.Rate;
+
 public class RatesStore {
 
 	public enum Singleton
@@ -103,6 +105,14 @@ public class RatesStore {
 					.append(',').append(price)
 					.append(',').append(timestamp)
 					.append(']').toString();
+		}
+		
+		public static Rate randomRate()
+		{
+			double bid = Math.random();
+			double ask = bid+Math.random()/100.0; 
+			double price = (ask-bid) /2;
+			return new Rate(bid,ask,price,Instant.now());
 		}
 	}
 

@@ -21,7 +21,7 @@ import static org.junit.Assert.assertEquals;
 import java.util.Arrays;
 import java.util.List;
 
-public class MyResourceTest {
+public class ResourceTest {
 
 	private HttpServer server;
 	private WebTarget target;
@@ -52,56 +52,19 @@ public class MyResourceTest {
 	 */
 	@Test
 	public void testGetIt() {
+		
 		String responseMsg = target.path("myresource").request().get(String.class);
 		System.out.println("Response="+responseMsg);
+		
 		assertEquals("Got it!", responseMsg);
 	}
 
-	/**
-	 * Test to see that the message "Got rate!" is sent in the response.
-	 */
 	@Test
-	public void testFxRate() {
-		String responseMsg = target.path("fxrate").request().get(String.class);
-		System.out.println("Response="+responseMsg);
-		assertEquals("Got rate!", responseMsg);
-	}
-
-	@Test
-	public void testOneFrame() throws OneFrameException
+	public void testRateResource()
 	{
-		OneFrame of = new OneFrame();
-		String ccyPairs [] ={ "JPYNZD", "GBPJPY" };
-		System.out.println("OneFrameRate getRate "+Arrays.asList(ccyPairs));
-		List<OneFrameRate> rates = of.getRate(ccyPairs);
-
-		int ccyPair = 0;
-		for( OneFrameRate rate : rates)
-		{
-			CurrencyPair pair = new RatesStore.CurrencyPair(ccyPairs[ccyPair++]);
-			System.out.println(pair+" OneFrameRate ="+rate);
-			assertEquals(pair.getFrom(), rate.from);
-			assertEquals(pair.getTo(), rate.to);
-		}
-		
-		assertEquals(ccyPairs.length, rates.size());
+		String responseMsg = target.path("rate").queryParam("pair","USDJPY").queryParam("pair","GBPJPY").request("application/json").get(String.class);
+		System.out.println("Response="+responseMsg);
+		assertEquals("Got RateResource!", responseMsg);
 	}
-
-
-//	/**
-//	 * Test to see can grab a rate from server
-//	 */
-//	@Test
-//	public void testRate() {
-//		String responseMsg = target.path("rate").request().get(String.class);
-//		System.out.println("Response="+responseMsg);
-////		assertEquals("Got rate!", responseMsg);
-//	}
-//
-//	@Test
-//	public void testClientRate() {
-//		String responseMsg = target.path("client/clientrate").request().get(String.class);
-//		System.out.println("Response="+responseMsg);
-////		assertEquals("Got rate!", responseMsg);
-//	}
+	
 }
