@@ -2,12 +2,15 @@ package com.paidy.forex.proxy;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.Enumeration;
 import java.util.List;
+import java.util.Optional;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.BiPredicate;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.logging.Level;
@@ -15,6 +18,7 @@ import java.util.logging.Logger;
 
 import com.paidy.forex.proxy.OneFrame.OneFrameException;
 import com.paidy.forex.proxy.OneFrame.OneFrameRate;
+import com.paidy.forex.proxy.OneFrame.RatesStreamThread;
 
 public class RateSupplier implements Consumer<OneFrameRate> {
 
@@ -28,9 +32,11 @@ public class RateSupplier implements Consumer<OneFrameRate> {
 
 	final Predicate<OneFrameRate> isRateStaleFunc;
 
-	final Predicate<Instant> isReadStaleFunc;
+	final BiPredicate<String, Instant> isReadStaleFunc;
 
 	private Params params;
+
+	private FetchOptimiseTask fetchOptimiseTask;
 
 
 	public static class RateWrapper
@@ -73,17 +79,84 @@ public class RateSupplier implements Consumer<OneFrameRate> {
 		long fetchOptimiseInitialDelay = 2000;
 	}
 
-	RateSupplier(OneFrame oneFrame,Predicate<OneFrameRate> isRateStaleFunc, Predicate<Instant> isReadStaleFunc, Params params)
+	class FetchOptimiseTask extends TimerTask 
+		{
+			final Logger log = Logger.getLogger(FetchOptimiseTask.class.getName()); 
+	
+			private OneFrame.RatesStreamThread ratesStream; 
+	
+			public void run()
+			{
+				// Objective is to build a list of active currency pairs. 
+				// Then change the ONeFream streamer if necessary
+	
+				List<String> toStart = readNotStaleCurrencyPairs();
+	
+				if (toStart.isEmpty())
+				{
+					if (ratesStream != null)
+					{
+						System.out.println("ask OneFrame to stop streaming []");
+	
+						ratesStream.safeStop();
+						ratesStream = null;
+					}
+				}
+				else // one or more cyyPairs to fetch
+				{
+					boolean allPresent = false;
+	
+					Optional<String[]> current = getRatesStreamCurrencyPairs();
+					if (!current.isEmpty())
+					{
+						if (toStart.size() != current.get().length)
+							allPresent = false;
+						else
+						{
+							allPresent = Arrays.asList(current.get()).containsAll(toStart);
+						}
+					}
+	
+					if (!allPresent)
+					{
+						String[] currencyPairs = toStart.toArray(new String[0]);
+	
+						// replace current stream or start new stream
+						try {
+							System.out.println("ask OneFrame to stream "+toStart);
+	
+							ratesStream = oneFrame.streamRates(RateSupplier.this, currencyPairs);
+							
+						} catch (OneFrameException e) {
+	
+							log.log(Level.WARNING,e.getMessage(),e);
+						}
+					}
+				}
+	
+	//			System.out.println("Task executed at time: " + new Date());
+	
+			}
+	
+			public Optional<String[]> getRatesStreamCurrencyPairs() 
+			{
+					RatesStreamThread currentRatesStream = ratesStream; // take a copy to test for null, as maybe changed to null by Timer thread half way
+					
+					return (currentRatesStream == null || !currentRatesStream.isRunning()) ? Optional.empty() : Optional.of(currentRatesStream.getCurrencyPairs());
+			}
+		}
+
+	RateSupplier(OneFrame oneFrame,Predicate<OneFrameRate> isRateStaleFunc, BiPredicate<String, Instant> isReadStaleFunc2, Params params)
 	{
 		this.oneFrame = oneFrame;
 		this.isRateStaleFunc = isRateStaleFunc;
-		this.isReadStaleFunc = isReadStaleFunc;
+		this.isReadStaleFunc = isReadStaleFunc2;
 		this.params = params;
 
 		scheduleFetchOptimiseTask();
 	}
 
-	List<String> readStaleCurrencyPairs()
+	List<String> readNotStaleCurrencyPairs()
 	{
 		List<String> toStart = new ArrayList<String>();
 
@@ -92,78 +165,21 @@ public class RateSupplier implements Consumer<OneFrameRate> {
 		{
 			RateWrapper rateWrapper = enumeration.nextElement();
 
-			if (!isReadStaleFunc.test(rateWrapper.getReadTimestamp()))
+			if (!isReadStaleFunc.test(rateWrapper.rate.getCurrencyPair(),rateWrapper.getReadTimestamp()))
 				toStart.add(rateWrapper.getRate().getCurrencyPair());
 		}
 		
 		return toStart;
 	}
 
-	class FetchOptimiseTask extends TimerTask 
-	{
-		final Logger log = Logger.getLogger(FetchOptimiseTask.class.getName()); 
-
-		private OneFrame.RatesStreamThread ratesStream; 
-
-		public void run()
-		{
-			// Objective is to build a list of active currency pairs. 
-			// Then change the ONeFream streamer if necessary
-
-			List<String> toStart = readStaleCurrencyPairs();
-
-			if (toStart.isEmpty())
-			{
-				if (ratesStream != null)
-				{
-					ratesStream.safeStop();
-					ratesStream = null;
-				}
-			}
-			else // one or more cyyPairs to fetch
-			{
-				boolean allPresent = false;
-
-				if (ratesStream != null)
-				{
-					allPresent = true;
-					for(String ccyPair : toStart)
-					{
-						if (!ratesStream.isFetching(ccyPair))
-						{
-							allPresent = false;
-							break;
-						}
-					}
-
-				}
-
-				if (!allPresent)
-				{
-					String[] currencyPairs = toStart.toArray(new String[0]);
-
-					// replace current stream or start new stream
-					try {
-						ratesStream = oneFrame.streamRates(RateSupplier.this, currencyPairs);
-					} catch (OneFrameException e) {
-
-						log.log(Level.WARNING,e.getMessage(),e);
-					}
-				}
-			}
-
-			System.out.println("Task executed at time: " + new Date());
-
-		}
-	};
-
 	private void scheduleFetchOptimiseTask() 
 	{
 		Timer t = new Timer();
-		TimerTask task = new FetchOptimiseTask();
-		t.scheduleAtFixedRate(task, /* delay */ params.fetchOptimiseInitialDelay, params.fetchOptimiseSechedulPeriod); 
+		fetchOptimiseTask = new FetchOptimiseTask();
+		t.scheduleAtFixedRate(fetchOptimiseTask, /* delay */ params.fetchOptimiseInitialDelay, params.fetchOptimiseSechedulPeriod); 
 
-		// TODO think about t.cancel() if rate supplier is stopped          
+		// TODO think about t.cancel() if rate supplier is stopped  
+		// TODO would like to sleep the timer task when there are zero rates requested
 	}
 
 
@@ -235,6 +251,12 @@ public class RateSupplier implements Consumer<OneFrameRate> {
 			log.log(Level.WARNING,"Rate received for "+ccyPair+" but not in rates mpa, adding anyway");
 			rates.put(ccyPair, new RateWrapper(rate));
 		}
+	}
+
+	public Optional<String[]> getRatesStreamCurrecnyPairs() {
+
+		return fetchOptimiseTask.getRatesStreamCurrencyPairs();
+		
 	}
 
 }
