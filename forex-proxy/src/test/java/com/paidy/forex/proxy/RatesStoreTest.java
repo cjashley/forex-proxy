@@ -18,11 +18,11 @@ public class RatesStoreTest {
 	public void currencyPairTest()
 	{
 		try {
-			new RatesStore.CurrencyPair("ABC");
+			new CurrencyPair("ABC");
 		}
 		catch (IllegalArgumentException e) {}
 		
-		RatesStore.CurrencyPair pair = new RatesStore.CurrencyPair("JPYNZD");
+		CurrencyPair pair = new CurrencyPair("JPYNZD");
 		
 		Assert.assertEquals("JPY", pair.getFrom());
 		Assert.assertEquals("NZD", pair.getTo());
@@ -32,7 +32,7 @@ public class RatesStoreTest {
 	@Test
 	public void rateSingletonTest()
 	{
-		final RatesStore.CurrencyPair JPYNZD = new RatesStore.CurrencyPair("JPYNZD");
+		final CurrencyPair JPYNZD = new CurrencyPair("JPYNZD");
 		assertNull(Singleton.INSTANCE.rates.findRate(JPYNZD));
 		
 		Rate rateJPYNZD = Rate.randomRate();

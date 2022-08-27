@@ -14,7 +14,6 @@ import com.paidy.forex.proxy.Main;
 import com.paidy.forex.proxy.OneFrame;
 import com.paidy.forex.proxy.OneFrame.OneFrameException;
 import com.paidy.forex.proxy.OneFrame.OneFrameRate;
-import com.paidy.forex.proxy.RatesStore.CurrencyPair;
 
 import static org.junit.Assert.assertEquals;
 

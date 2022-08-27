@@ -3,6 +3,7 @@ package com.paidy.forex.proxy;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.HashMap;
+import java.util.concurrent.ConcurrentHashMap;
 
 import com.paidy.forex.proxy.RatesStore.Rate;
 
@@ -17,38 +18,6 @@ public class RatesStore {
 		Singleton()
 		{
 			rates = new RatesStore();
-		}
-	}
-
-	public static class CurrencyPair
-	{
-		final String currencyPair;
-
-		CurrencyPair(String currencyPair) 
-		{
-			if (currencyPair.length() != 6) throw new IllegalArgumentException("Currency pair len "+currencyPair.length()+"!= 6 i.e. two 3 char pairs e.g. NZDJPY");
-			this.currencyPair = currencyPair;
-		}
-
-		String getFrom() { return currencyPair.substring(0,3);}
-		String getTo() { return currencyPair.substring(3); }
-
-		@Override
-		public String toString() 
-		{
-			return currencyPair;
-		}
-
-		@Override
-		public boolean equals( Object b)
-		{
-			return currencyPair.equals(b);
-		}
-
-		@Override
-		public int hashCode()
-		{
-			return currencyPair.hashCode();
 		}
 	}
 
@@ -118,8 +87,9 @@ public class RatesStore {
 
 
 
-	HashMap<CurrencyPair,Rate> rates = new HashMap<>();
+	ConcurrentHashMap<CurrencyPair,Rate> rates = new ConcurrentHashMap<>(); 
 
+	
 	/**
 	 * 
 	 * @param pair to find rate for

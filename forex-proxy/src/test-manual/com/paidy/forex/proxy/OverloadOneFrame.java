@@ -13,7 +13,7 @@ public class OverloadOneFrame {
 
 	
 	@Test
-	public void overloadOneFrame()
+	public void overloadOneFrame() throws InvalidCurrencyPairException
 	{
 		OneFrame oneFrame = new OneFrame();
 		try {

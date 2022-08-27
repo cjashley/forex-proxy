@@ -25,8 +25,6 @@ import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.Response;
 
-import com.paidy.forex.proxy.OneFrame.RatesStreamThread;
-
 public class OneFrame {
 
 	final static Logger LOG = Logger.getLogger(OneFrame.class.getName());
@@ -36,6 +34,7 @@ public class OneFrame {
 	}
 	private static final String TOKEN = "10dc303535874aeccc86a8251e6992f5";
 	public static final String ONE_FRAME_URI = "http://localhost:8080/";
+	
 
 	private AtomicInteger requestCount = new AtomicInteger();  // we only get 1,000 per day with a docker instant (may be restarted)
 
@@ -80,7 +79,7 @@ public class OneFrame {
 			this.timestamp = timestamp;
 		}
 		
-		public String getPair() { return from+to; }
+		public String getCurrencyPair() { return from+to; }
 
 		@Override
 		public String toString()
@@ -103,12 +102,14 @@ public class OneFrame {
 	public class RatesStreamThread implements Runnable {
 
 		private Thread worker;
+		private Throwable lastException = null;
+
 		private final AtomicBoolean running = new AtomicBoolean(true); // it is considered running is true through init phase,
 		private final AtomicInteger consumeCount = new AtomicInteger(0); 
 
-		private Response response;
-		private Consumer<? super OneFrameRate> consumer;
-		private String[] currencyPairs;
+		private final Response response;
+		private final Consumer<? super OneFrameRate> consumer;
+		private final String[] currencyPairs;
 
 		public RatesStreamThread(String [] currencyPairs, Response response, Consumer<? super OneFrameRate> consumer) 
 		{
@@ -118,8 +119,12 @@ public class OneFrame {
 		}
 
 		public void start() {
-			worker = new Thread(this,String.join(",", currencyPairs));
+			worker = new Thread(this,getName());
 			worker.start();
+		}
+
+		public String getName() {
+			return "RatesStream"+currencyPairs[0]+ (currencyPairs.length == 1 ? "" : "+"+(currencyPairs.length-1));
 		}
 
 		public void safeStop() {
@@ -127,22 +132,28 @@ public class OneFrame {
 		}
 
 		public void run() { 
-			System.out.println("run()"); System.out.flush();
 
 			running.set(true);
-			System.out.println("run() "+running.get()); System.out.flush();
 
 			try ( InputStream is = (InputStream)response.readEntity(InputStream.class) )
 			{
 				try (Scanner s = new Scanner(is).useDelimiter(String.join("|","\\[\\{","\\}\\,\\{", "\\}\\]"))) // [{ or },{ or }]
 				{
-					System.out.println("while(running,get() "+running.get()); System.out.flush();
-
 					while (running.get()) {
 
 						String line = s.next();
+						
 						if (!line.isBlank())  // line will be empty in between each data sequence [{,,,}][{,,}] 
 						{
+							//  handling {"error":"No currency pair provided"}
+							//  handling {"error":"Quota reached"}
+							//  handling {"error":"Invalid Currency Pair"}
+							if (line.startsWith("{"))
+							{
+							   if (line.contains("Invalid Currency Pair")) throw new InvalidCurrencyPairException(currencyPairs);
+								
+							}
+							
 							line = "{"+ line + "}"; 
 
 							System.out.println(line); System.out.flush();
@@ -159,15 +170,20 @@ public class OneFrame {
 							}
 						}
 					}
+				} catch (InvalidCurrencyPairException e) {
+					lastException = e;
+					e.printStackTrace();
 				}
 
 			} catch (IOException e1) 
 			{
+				lastException = e1;
 				System.out.println("input srtream error "+e1);
 			}
 			finally
 			{
 				response.close();
+				running.set(false);
 			}
 
 		}
@@ -180,8 +196,19 @@ public class OneFrame {
 			return consumeCount.get();
 		}
 
-		public String getName() {
-			return worker.getName();
+		public String[] getCurrencyPairs() {
+			return currencyPairs;
+		}
+		
+		public boolean isFetching(String ccyPair) {
+			return Arrays.stream(currencyPairs)
+                    .filter(x -> x.contentEquals(ccyPair))
+                    .findFirst()
+                    .orElse(null) != null;			
+		}
+
+		public Throwable getLastException() {
+			return lastException;
 		}
 
 	} 
@@ -292,7 +319,7 @@ public class OneFrame {
 	 */
 
 
-	public List<OneFrameRate> getRate(@QueryParam("pair") String ... currencyPairs) throws OneFrameException
+	public List<OneFrameRate> getRate(@QueryParam("pair") String ... currencyPairs) throws OneFrameException, InvalidCurrencyPairException
 	{
 		Client client = null;
 
@@ -323,6 +350,7 @@ public class OneFrame {
 					case OBJECT:
 						//  handling {"error":"No currency pair provided"}
 						//  handling {"error":"Quota reached"}
+						//  handling {"error":"Invalid Currency Pair"}
 
 						LOG.log(Level.INFO,"request "+webTarget.getUri().toString());
 						LOG.log(Level.INFO,"response jsonStr="+jsonStr);
@@ -331,6 +359,8 @@ public class OneFrame {
 						JsonObject errorObj = read.asJsonObject();
 
 						String errorMsg = errorObj.getString("error");
+						
+						if (errorMsg.contentEquals("Invalid Currency Pair")) throw new InvalidCurrencyPairException(currencyPairs);
 
 						throw new OneFrameException(errorMsg);
 

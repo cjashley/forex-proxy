@@ -22,7 +22,6 @@ import javax.ws.rs.core.StreamingOutput;
 import org.glassfish.jersey.server.Uri;
 
 import com.paidy.forex.proxy.OneFrame.OneFrameRate;
-import com.paidy.forex.proxy.RatesStore.CurrencyPair;
 import com.paidy.forex.proxy.RatesStore.Rate;
 
 /**
