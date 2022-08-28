@@ -60,7 +60,7 @@ public class OneFrameTest {
 
 		for(int i=0; i< 2; i ++)
 		{
-			Thread.currentThread().sleep(1000);
+			Thread.sleep(1000);
 		System.out.println(thread.getName()+"running "+thread.isRunning()+" consumeCount:"+thread.getConsumeCount());
 		}
 		thread.safeStop();
@@ -71,7 +71,7 @@ public class OneFrameTest {
 
 		for(int i=0; i< 2; i ++)
 		{
-			Thread.currentThread().sleep(1000);
+			Thread.sleep(1000);
 			System.out.println(thread.getName()+"running "+thread.isRunning()+" consumeCount:"+thread.getConsumeCount());
 		}
 		assertFalse(thread.isRunning());
@@ -98,7 +98,7 @@ public class OneFrameTest {
 		
 		
 		assertTrue(thread.isRunning());
-		Thread.currentThread().sleep(10);
+		Thread.sleep(10);
 		thread.safeStop();
 
 		assertTrue(thread.getLastException() instanceof OneFrameCurrencyPairsException);
@@ -136,6 +136,7 @@ public class OneFrameTest {
 		System.out.println("OneFrameRate getRate "+Arrays.asList(ccyPairs));
 
 		try {
+		@SuppressWarnings("unused")
 		List<OneFrameRate> rates = of.getRates(ccyPairs);
 		Assert.fail("expect invalid ccy pair exception");
 		}

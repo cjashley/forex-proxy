@@ -14,6 +14,8 @@
 		</attributes>
 	</classpathentry>
 	<classpathentry kind="src" path="src/test-manual"/>
+	<classpathentry kind="src" path="src/poc/java"/>
+	<classpathentry kind="src" path="src/test-poc/java"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-1.8">
 		<attributes>
 			<attribute name="module" value="true"/>
