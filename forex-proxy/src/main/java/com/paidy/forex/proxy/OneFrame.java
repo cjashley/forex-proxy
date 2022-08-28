@@ -50,7 +50,27 @@ public class OneFrame {
 			super(message,e);
 		}
 	}
+	
+	/**
+	 * When asking for multiple rates, there is no way of knowing which rate was invalid 
+	 */
+	public static class OneFrameCurrencyPairsException extends Exception {
 
+		private String[] currencyPairs;
+
+		public OneFrameCurrencyPairsException(String[] currencyPairs) {
+			super(String.join(",", currencyPairs));
+			this.currencyPairs = currencyPairs;
+		}
+
+		/**
+		 * One of these was invalid but don't know which
+		 */
+		public String[] getCurrencyPairs() {
+			return currencyPairs;
+		}
+		
+	}
 	public static class OneFrameRate
 	{
 		public final String from;
@@ -150,8 +170,8 @@ public class OneFrame {
 							//  handling {"error":"Invalid Currency Pair"}
 							if (line.startsWith("{"))
 							{
-							   if (line.contains("Invalid Currency Pair")) throw new InvalidCurrencyPairException(currencyPairs);
-								
+							   if (line.contains("Invalid Currency Pair")) throw new OneFrameCurrencyPairsException(currencyPairs);
+							   if (line.contains("No currency pair provided")) throw new OneFrameException("No currency pair provided");
 							}
 							
 							line = "{"+ line + "}"; 
@@ -170,15 +190,15 @@ public class OneFrame {
 							}
 						}
 					}
-				} catch (InvalidCurrencyPairException e) {
+				} catch (OneFrameCurrencyPairsException | OneFrameException e) {
 					lastException = e;
-					e.printStackTrace();
+					throw new RuntimeException(e);
 				}
 
 			} catch (IOException e1) 
 			{
 				lastException = e1;
-				System.out.println("input srtream error "+e1);
+				throw new RuntimeException(e1);
 			}
 			finally
 			{
@@ -301,7 +321,8 @@ public class OneFrame {
 
 		return streamThread;
 	}
-	/*
+	
+	/* TODO implement a streaming response using code snippet 
 
   StreamingOutput stream = new StreamingOutput() {
             @Override
@@ -318,8 +339,20 @@ public class OneFrame {
         return Response.ok(stream).build();
 	 */
 
-
-	public List<OneFrameRate> getRate(@QueryParam("pair") String ... currencyPairs) throws OneFrameException, InvalidCurrencyPairException
+	public OneFrameRate getRate(String currencyPair) throws OneFrameException, InvalidCurrencyPairException
+	{
+		try {
+			List<OneFrameRate> rates = getRates(currencyPair);
+			if (rates.isEmpty()) throw new OneFrameException("Unexpected empty rates returned for "+currencyPair );
+			return rates.get(0);
+		}
+		catch (OneFrameCurrencyPairsException e)
+		{
+			throw new InvalidCurrencyPairException(currencyPair); // use narrow exception, as we are sure this ccyPair was invalid
+		}
+	}
+	
+	public List<OneFrameRate> getRates(String ... currencyPairs) throws OneFrameException, OneFrameCurrencyPairsException
 	{
 		Client client = null;
 
@@ -360,7 +393,7 @@ public class OneFrame {
 
 						String errorMsg = errorObj.getString("error");
 						
-						if (errorMsg.contentEquals("Invalid Currency Pair")) throw new InvalidCurrencyPairException(currencyPairs);
+						if (errorMsg.contentEquals("Invalid Currency Pair")) throw new OneFrameCurrencyPairsException(currencyPairs);
 
 						throw new OneFrameException(errorMsg);
 

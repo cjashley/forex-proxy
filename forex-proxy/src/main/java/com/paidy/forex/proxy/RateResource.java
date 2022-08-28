@@ -14,15 +14,11 @@ import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.WebApplicationException;
-import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 
-import org.glassfish.jersey.server.Uri;
-
 import com.paidy.forex.proxy.OneFrame.OneFrameRate;
-import com.paidy.forex.proxy.RatesStore.Rate;
 
 /**
  * Root resource (exposed at "rate" path)
@@ -37,23 +33,21 @@ public class RateResource {
 	{
 		System.out.println("params "+ Arrays.asList(ccyPairs));
 
+		String[] invalidCcyPairs = Arrays.stream(ccyPairs).filter(CurrencyPair.validate).toArray(String[]::new);
+		
+// TODO do our best here to validate ccyPairs,  fail fast, without wasting limited calls to OneFrame		
+		if (invalidCcyPairs.length != 0)
+		{
+			// TODO report error
+		}
+		
+		
 		List<OneFrameRate> rates = new ArrayList<OneFrameRate>();
 		for(String cc : ccyPairs)
 		{
-			rates.add(makeOneFrameRate(new CurrencyPair(cc), Rate.randomRate()));
+			// TODO
 		}
 		return rates;
-	}
-
-	OneFrameRate makeOneFrameRate(CurrencyPair ccPair, Rate rate)
-	{
-		return new OneFrameRate(
-				ccPair.getFrom()
-				,ccPair.getTo()
-				,rate.bid
-				,rate.ask
-				,rate.price
-				,rate.timestamp);
 	}
 
 

@@ -17,6 +17,7 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import com.paidy.forex.proxy.OneFrame.OneFrameCurrencyPairsException;
 import com.paidy.forex.proxy.OneFrame.OneFrameException;
 import com.paidy.forex.proxy.OneFrame.OneFrameRate;
 import com.paidy.forex.proxy.OneFrame.RatesStreamThread;
@@ -100,26 +101,26 @@ public class OneFrameTest {
 		Thread.currentThread().sleep(10);
 		thread.safeStop();
 
-		assertTrue(thread.getLastException() instanceof InvalidCurrencyPairException);
+		assertTrue(thread.getLastException() instanceof OneFrameCurrencyPairsException);
 		assertFalse(thread.isRunning());
 		assertFalse("Consumer should not be called",fail.get());
 
 	}
 	@Test
-	public void testGetRates() throws OneFrameException, InvalidCurrencyPairException
+	public void testGetRates() throws OneFrameException, OneFrameCurrencyPairsException
 	{
 		OneFrame of = new OneFrame();
 		String ccyPairs [] ={ "JPYNZD", "GBPJPY" };
 		System.out.println("OneFrameRate getRate "+Arrays.asList(ccyPairs));
-		List<OneFrameRate> rates = of.getRate(ccyPairs);
+		List<OneFrameRate> rates = of.getRates(ccyPairs);
 
 		int ccyPair = 0;
 		for( OneFrameRate rate : rates)
 		{
 			CurrencyPair pair = new CurrencyPair(ccyPairs[ccyPair++]);
 			System.out.println(pair+" OneFrameRate ="+rate);
-			assertEquals(pair.getFrom(), rate.from);
-			assertEquals(pair.getTo(), rate.to);
+			assertEquals(pair.from(), rate.from);
+			assertEquals(pair.to(), rate.to);
 		}
 		
 		assertEquals(ccyPairs.length, rates.size());
@@ -135,10 +136,10 @@ public class OneFrameTest {
 		System.out.println("OneFrameRate getRate "+Arrays.asList(ccyPairs));
 
 		try {
-		List<OneFrameRate> rates = of.getRate(ccyPairs);
+		List<OneFrameRate> rates = of.getRates(ccyPairs);
 		Assert.fail("expect invalid ccy pair exception");
 		}
-		catch(InvalidCurrencyPairException e)
+		catch(OneFrameCurrencyPairsException e)
 		{
 			assertArrayEquals(ccyPairs,e.getCurrencyPairs());
 		}

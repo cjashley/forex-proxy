@@ -2,18 +2,18 @@ package com.paidy.forex.proxy;
 
 public class InvalidCurrencyPairException extends Exception {
 
-	private String[] currencyPairs;
+	private String currencyPair;
 
-	public InvalidCurrencyPairException(String[] currencyPairs) {
-		super(String.join(",", currencyPairs));
-		this.currencyPairs = currencyPairs;
+	public InvalidCurrencyPairException(String currencyPair) {
+		super(currencyPair);
+		this.currencyPair = currencyPair;
 	}
 
 	/**
 	 * One of these was invalid but don't know which
 	 */
-	public String[] getCurrencyPairs() {
-		return currencyPairs;
+	public String getCurrencyPair() {
+		return currencyPair;
 	}
 	
 }
