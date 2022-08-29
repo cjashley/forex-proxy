@@ -1,6 +1,8 @@
 package com.paidy.forex.proxy;
 
-public class InvalidCurrencyPairException extends Exception {
+import javax.ws.rs.BadRequestException;
+
+public class InvalidCurrencyPairException extends BadRequestException {
 
 	private String currencyPair;
 

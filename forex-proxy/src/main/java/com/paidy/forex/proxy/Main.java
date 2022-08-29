@@ -44,8 +44,13 @@ public class Main {
         // in com.example package
         final ResourceConfig rc = new ResourceConfig().packages("com.paidy.forex.proxy");
         
+        rc.register(RateSupplierService.class);
+        rc.register(new RateSupplierService.RateSupplierBinder());
+        
         rc.getClasses().forEach(c -> System.out.println(c.descriptorString()));
-        	
+        
+        
+        
         // create and start a new instance of grizzly http server
         // exposing the Jersey application at BASE_URI
         return GrizzlyHttpServerFactory.createHttpServer(URI.create(BASE_URI), rc);

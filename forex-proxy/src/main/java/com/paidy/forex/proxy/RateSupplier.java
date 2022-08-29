@@ -1,6 +1,8 @@
 package com.paidy.forex.proxy;
 
+import java.time.Duration;
 import java.time.Instant;
+import java.time.temporal.TemporalAmount;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -41,25 +43,63 @@ public class RateSupplier implements Consumer<OneFrameRate>
 	private final OneFrame oneFrame;
 	private final Predicate<OneFrameRate> isRateStaleFunc;
 	private final BiPredicate<String, Instant> isReadStaleFunc;
-	private final Params params;
+	private final Config config;
 
 	private Timer fetchOptimiseTimer = new Timer();
 	private final FetchOptimiseTask fetchOptimiseTask; // might need, helpful for debugging
 
-	static class Params
+	static class IsRateStale implements Predicate<OneFrameRate>
 	{
-		long fetchOptimiseSechedulPeriod = 500;
-		long fetchOptimiseInitialDelay = 2000;
+
+		private Config config;
+		IsRateStale(Config config)
+		{
+			this.config = config;
+		}
+		
+		@Override
+		public boolean test(OneFrameRate rate) 
+		{
+			return rate.time_stamp.plus(config.rateStaleDuration).isBefore(Instant.now());
+		}
+		
+	}
+	
+	static class IsReadStale implements BiPredicate<String,Instant>
+	{
+
+		private Config config;
+		IsReadStale(Config config)
+		{
+			this.config = config;
+		}
+
+		@Override
+		public boolean test(String currencyPair, Instant readTimestamp) {
+			return readTimestamp.plus(config.readStaleDuration).isBefore(Instant.now());
+		}
+		
+	}
+	
+	static public class Config
+	{
+		// TODO all config to be read from properties/web config
+		public Duration rateStaleDuration = Duration.ofMinutes(1);
+		public Duration readStaleDuration = Duration.ofSeconds(30);
+		public long fetchOptimiseSechedulPeriod = 500;
+		public long fetchOptimiseInitialDelay = 2000;
 		public int numOfRatesPerSupplier = 10;
 		public int countDownToRunOptimization = 60 * 1000 / (int) fetchOptimiseSechedulPeriod;  // 1 min / schedule period
+		
+		
 	}
 
-	public RateSupplier(OneFrame oneFrame,Predicate<OneFrameRate> isRateStaleFunc, BiPredicate<String, Instant> isReadStaleFunc, Params params)
+	public RateSupplier(OneFrame oneFrame,Predicate<OneFrameRate> isRateStaleFunc, BiPredicate<String, Instant> isReadStaleFunc, Config config)
 	{
 		this.oneFrame = oneFrame;
 		this.isRateStaleFunc = isRateStaleFunc;
 		this.isReadStaleFunc = isReadStaleFunc;
-		this.params = params;
+		this.config = config;
 		this.fetchOptimiseTask = scheduleFetchOptimiseTask(new FetchOptimiseTask());
 	}
 
@@ -67,7 +107,7 @@ public class RateSupplier implements Consumer<OneFrameRate>
 	{
 		// TODO think about t.cancel() if rate supplier is stopped  
 		// TODO would like to sleep the timer task when there are zero rates requested
-		fetchOptimiseTimer.scheduleAtFixedRate(fetchOptimiseTask, /* delay */ params.fetchOptimiseInitialDelay, params.fetchOptimiseSechedulPeriod); 
+		fetchOptimiseTimer.scheduleAtFixedRate(fetchOptimiseTask, /* delay */ config.fetchOptimiseInitialDelay, config.fetchOptimiseSechedulPeriod); 
 		return fetchOptimiseTask;
 	}
 
@@ -85,7 +125,7 @@ public class RateSupplier implements Consumer<OneFrameRate>
 
 		private final RateStreamBuckets rateStreamBuckets = new RateStreamBuckets();
 
-		private int countDownToRunOptimization  = params.countDownToRunOptimization;; // Decremented each call of run() until zero, when we run the heavier process
+		private int countDownToRunOptimization  = config.countDownToRunOptimization;; // Decremented each call of run() until zero, when we run the heavier process
 
 
 
@@ -100,7 +140,7 @@ public class RateSupplier implements Consumer<OneFrameRate>
 			private ArrayList<RatesStreamThread>[] bucketsInit() 
 			{
 				@SuppressWarnings("unchecked")
-				ArrayList<RatesStreamThread>[] buckets = new ArrayList[params.numOfRatesPerSupplier];
+				ArrayList<RatesStreamThread>[] buckets = new ArrayList[config.numOfRatesPerSupplier];
 
 				for(int i=0; i<buckets.length; i++)
 				{
@@ -194,7 +234,7 @@ public class RateSupplier implements Consumer<OneFrameRate>
 
 			void arrangeStartDrainingToStart(List<String> toStart) 
 			{
-				String[] ccyPairs = toStart.stream().limit(params.numOfRatesPerSupplier).toArray(String[]::new);
+				String[] ccyPairs = toStart.stream().limit(config.numOfRatesPerSupplier).toArray(String[]::new);
 				Arrays.stream(ccyPairs).forEach(c -> toStart.remove(c));
 
 				try {
@@ -219,7 +259,7 @@ public class RateSupplier implements Consumer<OneFrameRate>
 			 */
 			void arrangeRestartDrainingToStart(List<String> toStart, String[] toRestart) 
 			{
-				int numOfSlotsFree = params.numOfRatesPerSupplier - toRestart.length;
+				int numOfSlotsFree = config.numOfRatesPerSupplier - toRestart.length;
 
 				int toStartIndexLast = Math.max(0, toStart.size() - numOfSlotsFree); // prevent using more than we have
 
@@ -285,14 +325,14 @@ public class RateSupplier implements Consumer<OneFrameRate>
 			List<RateWrapper> toStartStreaming = new LinkedList<RateWrapper>();
 			// Objective is to build a list of active currency pairs. 
 			// Then change the ONeFream streamer if necessary
-			int newRateCount = newRates.drainTo(toStartStreaming, params.numOfRatesPerSupplier);
+			int newRateCount = newRates.drainTo(toStartStreaming, config.numOfRatesPerSupplier);
 
 
 			if (newRateCount > 0) arrageRateSuppliersFor(toStartStreaming);
 
 			if (--countDownToRunOptimization <= 0 )
 			{
-				countDownToRunOptimization = params.countDownToRunOptimization; // reset
+				countDownToRunOptimization = config.countDownToRunOptimization; // reset
 				optimiseRateSuppliers();
 			}
 
@@ -450,7 +490,7 @@ public class RateSupplier implements Consumer<OneFrameRate>
 				newRates.add(rateWrapper); // can add as a new rate, its stale and no streamer will be getting it.
 				// Since the rates.get will have read stamped the rate, the next FetchOptimise run will get the rate
 				try {
-					Thread.sleep(params.fetchOptimiseSechedulPeriod*2);
+					Thread.sleep(config.fetchOptimiseSechedulPeriod*2);
 				} catch (InterruptedException e) {
 					e.printStackTrace();
 				}

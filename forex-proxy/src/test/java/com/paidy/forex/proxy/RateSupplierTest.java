@@ -1,5 +1,6 @@
 package com.paidy.forex.proxy;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -16,8 +17,11 @@ import org.junit.jupiter.api.Test;
 import com.paidy.forex.proxy.OneFrame.OneFrameCurrencyPairsException;
 import com.paidy.forex.proxy.OneFrame.OneFrameException;
 import com.paidy.forex.proxy.OneFrame.OneFrameRate;
+import com.paidy.forex.proxy.RateSupplier.Config;
 import com.paidy.forex.proxy.RateSupplier.FetchOptimiseTask;
-import com.paidy.forex.proxy.RateSupplier.Params;
+import com.paidy.forex.proxy.RateSupplier.IsRateStale;
+import com.paidy.forex.proxy.RateSupplier.IsReadStale;
+import com.paidy.forex.proxy.RateSupplier.Config;
 
 class RateSupplierTest {
 
@@ -26,7 +30,7 @@ class RateSupplierTest {
 	@Test
 	void currencyInvalidTest() throws OneFrameException, OneFrameCurrencyPairsException, StaleRateException 
 	{
-		RateSupplier rateSupplier = new RateSupplier(oneFrame,null,null,new Params());
+		RateSupplier rateSupplier = new RateSupplier(oneFrame,null,null,new Config());
 
 		try
 		{
@@ -45,7 +49,7 @@ class RateSupplierTest {
 	{
 		Predicate<OneFrameRate> isRateStale_true = t-> true; // always  state
 		BiPredicate<String,Instant> isReadStaleFunc  = (s,i) -> { return true;}; // always read stale, i.e. no streaming is ever done
-		RateSupplier rateSupplier = new RateSupplier(oneFrame, isRateStale_true, isReadStaleFunc, new Params());
+		RateSupplier rateSupplier = new RateSupplier(oneFrame, isRateStale_true, isReadStaleFunc, new Config());
 
 		OneFrameRate rate = rateSupplier.getRate("GBPJPY");
 		Assert.assertEquals("GBPJPY", rate.getCurrencyPair());
@@ -73,13 +77,13 @@ class RateSupplierTest {
 
 		Predicate<OneFrameRate> isRateStaleFunc = t -> isRateStale.get();
 		BiPredicate<String,Instant> isReadStaleFunc  = (s,i) -> { return isReadStaleFor.contains(s); };
-		Params params = new Params();
-		params.fetchOptimiseInitialDelay = 100;
-		params.fetchOptimiseSechedulPeriod = 100;
-		params.countDownToRunOptimization = 0;
-		params.numOfRatesPerSupplier = 1;  // start off SIMPLE 
+		Config config = new Config();
+		config.fetchOptimiseInitialDelay = 100;
+		config.fetchOptimiseSechedulPeriod = 100;
+		config.countDownToRunOptimization = 0;
+		config.numOfRatesPerSupplier = 1;  // start off SIMPLE 
 
-		RateSupplier rateSupplier = new RateSupplier(oneFrame, isRateStaleFunc, isReadStaleFunc, params);
+		RateSupplier rateSupplier = new RateSupplier(oneFrame, isRateStaleFunc, isReadStaleFunc, config);
 
 		try
 		{
@@ -127,7 +131,7 @@ class RateSupplierTest {
 				// Test making all rates stale one by one and causing the streaming to completely stop
 				{
 					isReadStaleFor.add("GBPJPY");
-					Thread.sleep(params.fetchOptimiseSechedulPeriod*2); // Give time for the stream to be reduced
+					Thread.sleep(config.fetchOptimiseSechedulPeriod*2); // Give time for the stream to be reduced
 
 					// Confirm buckets have only NZDJPY i.e. GBPY streaming stopped
 					{
@@ -137,7 +141,7 @@ class RateSupplierTest {
 					}
 
 					isReadStaleFor.add("NZDJPY");
-					Thread.sleep(params.fetchOptimiseSechedulPeriod*2); // Give time for the stream to be reduced
+					Thread.sleep(config.fetchOptimiseSechedulPeriod*2); // Give time for the stream to be reduced
 
 					// Confirm buckets are empty
 					{
@@ -170,13 +174,13 @@ class RateSupplierTest {
 
 		Predicate<OneFrameRate> isRateStaleFunc = t -> isRateStale.get();
 		BiPredicate<String,Instant> isReadStaleFunc  = (s,i) -> { return isReadStaleFor.contains(s); };
-		Params params = new Params();
-		params.fetchOptimiseInitialDelay = 100;
-		params.fetchOptimiseSechedulPeriod = 100;
-		params.countDownToRunOptimization = 0;
-		params.numOfRatesPerSupplier = 2;  // use two buckets, 
+		Config config = new Config();
+		config.fetchOptimiseInitialDelay = 100;
+		config.fetchOptimiseSechedulPeriod = 100;
+		config.countDownToRunOptimization = 0;
+		config.numOfRatesPerSupplier = 2;  // use two buckets, 
 
-		RateSupplier rateSupplier = new RateSupplier(oneFrame, isRateStaleFunc, isReadStaleFunc, params);
+		RateSupplier rateSupplier = new RateSupplier(oneFrame, isRateStaleFunc, isReadStaleFunc, config);
 
 		FetchOptimiseTask optimiserTask = rateSupplier.unscheduleFetchOptmiseTask();
 		try
@@ -293,6 +297,9 @@ class RateSupplierTest {
 		USD/JPY	CHF/JPY
 		EUR/CAD	AUD/JPY
 		EUR/AUD	AUD/NZD
+		http://localhost:8081/api/rates?pair=USDCAD&pair=EURJPY&pair=EURUSD&pair=EURCHF&pair=USDCHF&pair=EURGBP&pair=USDCAD&pair=EURJPY&pair=EURUSD&pair=EURCHF&pair=USDCHF&pair=EURGBP // DUPLICATE TEST
+
+		http://localhost:8081/api/rates?pair=GBPUSD&pair=AUDCAD&pair=NZDUSD&pair=GBPCHF&pair=AUDUSD&pair=GBPJPY&pair=USDCAD&pair=USDJPY&pair=CHFJPY&pair=EURCAD&pair=AUDJPY&pair=AUDNZD
 		 */
 		List<String> batch1 = List.of("USDCAD","EURJPY","EURUSD","EURCHF","USDCHF","EURGBP");
 		List<String> batch2 = List.of("GBPUSD","AUDCAD","NZDUSD","GBPCHF","AUDUSD","GBPJPY");
@@ -304,19 +311,19 @@ class RateSupplierTest {
 		all.addAll(batch2);
 		all.addAll(batch3);
 		Collections.sort(all);
-		
+
 		AtomicBoolean isRateStale = new AtomicBoolean(false);
 		List<String> isReadStaleFor = new ArrayList<String>();
 
 		Predicate<OneFrameRate> isRateStaleFunc = t -> isRateStale.get();
 		BiPredicate<String,Instant> isReadStaleFunc  = (s,i) -> { return isReadStaleFor.contains(s); };
-		Params params = new Params();
-		params.fetchOptimiseInitialDelay = 100;
-		params.fetchOptimiseSechedulPeriod = 100;
-		params.countDownToRunOptimization = 0;
-		params.numOfRatesPerSupplier = 9;  // use two buckets, 
+		Config config = new Config();
+		config.fetchOptimiseInitialDelay = 100;
+		config.fetchOptimiseSechedulPeriod = 100;
+		config.countDownToRunOptimization = 0;
+		config.numOfRatesPerSupplier = 9;  // use two buckets, 
 
-		RateSupplier rateSupplier = new RateSupplier(oneFrame, isRateStaleFunc, isReadStaleFunc, params);
+		RateSupplier rateSupplier = new RateSupplier(oneFrame, isRateStaleFunc, isReadStaleFunc, config);
 
 		FetchOptimiseTask optimiserTask = rateSupplier.unscheduleFetchOptmiseTask();
 
@@ -332,11 +339,38 @@ class RateSupplierTest {
 			optimiserTask.run(); // the stream to be reduced
 			Helper.print(rateSupplier.getRateStreamsBucketReport(),"batch"+(++iBatch));
 		}
-		
- 		 List<String> activePairs = rateSupplier.currencyPairsWithNonStaleReads();
-		 Collections.sort(activePairs);
-		 Assert.assertArrayEquals(all.toArray(new String[0]), activePairs.toArray(new String[0]));
+
+		List<String> activePairs = rateSupplier.currencyPairsWithNonStaleReads();
+		Collections.sort(activePairs);
+		Assert.assertArrayEquals(all.toArray(new String[0]), activePairs.toArray(new String[0]));
 	}
+
+	@Test void isRateStaleTest()
+	{
+		Config config = new Config();
+
+		IsRateStale func = new IsRateStale(config);
+
+		OneFrameRate rate = new OneFrameRate("ABC", "XYZ", 0.0, 0.0, 0.0, Instant.now());
+		Assert.assertFalse(func.test(rate));
+		rate = new OneFrameRate("ABC", "XYZ", 0.0, 0.0, 0.0, Instant.now().minus(config.rateStaleDuration).minusSeconds(1));
+		Assert.assertTrue(func.test(rate));
+
+	}
+
+	@Test void isReadStaleTest()
+	{
+		Config config = new Config();
+
+		IsReadStale func = new IsReadStale(config);
+
+		Instant readTimestamp = Instant.now();
+		String currencyPair = "anything";
+		Assert.assertFalse(func.test(currencyPair, readTimestamp));
+		readTimestamp = Instant.now().minus(config.readStaleDuration);
+		Assert.assertTrue(func.test(currencyPair, readTimestamp));
+	}
+
 
 	public static class Helper
 	{

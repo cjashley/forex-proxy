@@ -12,6 +12,7 @@ import javax.ws.rs.core.Response;
 import org.glassfish.jersey.server.Uri;
 
 // testing PoC
+// https://www.globalmentor.com/courses/softdev/jaxrs-client
 @Deprecated
 @Path("rateOneFrame")
 public class RateOneFrameResource {

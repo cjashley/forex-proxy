@@ -78,7 +78,7 @@ public class OneFrame {
 		public final double bid;
 		public final double ask;
 		public final double price;
-		public final Instant timestamp; //  "2022-08-25T13:40:52.559Z" 'Z' for Zulu and specifies the Etc/UTC timezone (which has the timezone offset of +00:00 hours).
+		public final Instant time_stamp; //  "2022-08-25T13:40:52.559Z" 'Z' for Zulu and specifies the Etc/UTC timezone (which has the timezone offset of +00:00 hours).
 
 		public OneFrameRate(JsonObject obj) {
 			this.from  = obj.getString("from");
@@ -86,7 +86,7 @@ public class OneFrame {
 			this.bid   = obj.getJsonNumber("bid").doubleValue();
 			this.ask   = obj.getJsonNumber("ask").doubleValue();
 			this.price = obj.getJsonNumber("price").doubleValue();
-			this.timestamp = Instant.parse(obj.getString("time_stamp"));
+			this.time_stamp = Instant.parse(obj.getString("time_stamp"));
 		}
 
 		public OneFrameRate(String from,String to, double bid, double ask, double price, Instant timestamp) 
@@ -96,7 +96,7 @@ public class OneFrame {
 			this.bid = bid;
 			this.ask = ask;
 			this.price = price;
-			this.timestamp = timestamp;
+			this.time_stamp = timestamp;
 		}
 		
 		public String getCurrencyPair() { return from+to; }
@@ -110,7 +110,7 @@ public class OneFrame {
 					.append(',').append(bid)
 					.append(',').append(ask)
 					.append(',').append(price)
-					.append(',').append(timestamp)
+					.append(',').append(time_stamp)
 					.append(']').toString();
 		}
 	}

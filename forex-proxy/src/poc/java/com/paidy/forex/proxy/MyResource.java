@@ -19,6 +19,8 @@ import org.glassfish.jersey.server.Uri;
 
 /**
  * Root resource (exposed at "myresource" path)
+ * 
+ * https://www.globalmentor.com/courses/softdev/jaxrs-client
  */
 @Path("myresource")
 public class MyResource {
