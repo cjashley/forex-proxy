@@ -95,4 +95,5 @@ I look forward to explaining more to you at your team.
 Yours sincerely,
 Chris
 
+PS (added this morning Tue 30th) I wish I had found the Scala challenge, as I wrote far too many old fassioned loops seeing what the Scala language can do this morning after installing it.
 
